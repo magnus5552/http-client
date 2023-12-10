@@ -1,8 +1,11 @@
 import socket
 from urllib.parse import urlparse
-
+import pickle
+import os
 from cmd_parser import configure_parser, HTTPArgs
 
+path = os.path.dirname(os.path.realpath(__file__))
+cookies_path = os.path.join(path, 'cookies.pickle')
 
 def make_request(args: HTTPArgs):
     url, method, headers, body, timeout, output_file = (
@@ -12,7 +15,7 @@ def make_request(args: HTTPArgs):
     hostname, port, path = process_url(url)
 
     headers = process_headers(headers)
-    add_cookie(headers)
+    add_cookie(headers, hostname)
     headers['Host'] = f'{hostname}:{port}'
     headers['Connection'] = 'close'
 
@@ -25,9 +28,9 @@ def make_request(args: HTTPArgs):
         sock.settimeout(timeout)
         sock.connect((hostname, port))
         sock.sendall(request.encode())
-        response = recieve_response(sock).decode()
+        response = receive_response(sock).decode()
 
-    set_cookie(response)
+    set_cookie(response, hostname)
 
     if output_file is not None:
         with open(output_file, 'w') as file:
@@ -69,7 +72,7 @@ def process_body(body):
     return body
 
 
-def recieve_response(sock: socket.socket):
+def receive_response(sock: socket.socket):
     response = b""
     while True:
         chunk = sock.recv(4096)
@@ -79,14 +82,37 @@ def recieve_response(sock: socket.socket):
     return response
 
 
-def set_cookie(response):
+def set_cookie(response: str, host: str) -> None:
     lines = response.split('\n')
-    cookie_headers = filter(lambda x: x.startswith('Set-Cookie:'), lines)
+    cookie_headers = list(filter(lambda x: x.startswith('Set-Cookie:'), lines))
+    values = {}
+    for cookie in cookie_headers:
+        name, value = cookie.split(': ', 1)[1].split('=', 1)
+        if name.startswith("__Secure-"):
+            name = name[9:]
+        elif name.startswith('__Host-'):
+            name = name[7:]
+        values[name] = value
+    cookies = get_cookies_from_file()
+    cookies[host] = values
+    with open(cookies_path, "wb") as file:
+        pickle.dump(cookies, file)
 
 
+def get_cookies_from_file() -> dict:
+    cookies = {}
+    if os.path.exists(cookies_path):
+        with open(cookies_path, "rb") as file:
+            cookies = pickle.load(file)
+    return cookies
 
-def add_cookie(headers):
-    pass
+
+def add_cookie(headers: dict, host: str) -> None:
+    cookies = get_cookies_from_file()
+    if len(cookies) == 0 or host not in cookies:
+        return
+    for name, value in cookies[host].items():
+        headers["Cookies"] = f"{name}={value}"
 
 
 if __name__ == '__main__':
