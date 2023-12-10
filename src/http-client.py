@@ -12,8 +12,9 @@ def make_request(args: HTTPArgs):
     hostname, port, path = process_url(url)
 
     headers = process_headers(headers)
+    add_cookie(headers)
     headers['Host'] = f'{hostname}:{port}'
-    #headers['Connection'] = 'close'
+    headers['Connection'] = 'close'
 
     body = process_body(body)
 
@@ -24,7 +25,9 @@ def make_request(args: HTTPArgs):
         sock.settimeout(timeout)
         sock.connect((hostname, port))
         sock.sendall(request.encode())
-        response = recieve_respone(sock).decode()
+        response = recieve_response(sock).decode()
+
+    set_cookie(response)
 
     if output_file is not None:
         with open(output_file, 'w') as file:
@@ -66,7 +69,7 @@ def process_body(body):
     return body
 
 
-def recieve_respone(sock: socket.socket):
+def recieve_response(sock: socket.socket):
     response = b""
     while True:
         chunk = sock.recv(4096)
@@ -76,8 +79,14 @@ def recieve_respone(sock: socket.socket):
     return response
 
 
-def custom_index(it, f, default=-1):
-    return next((i for i, e in enumerate(it) if f(e)), default)
+def set_cookie(response):
+    lines = response.split('\n')
+    cookie_headers = filter(lambda x: x.startswith('Set-Cookie:'), lines)
+
+
+
+def add_cookie(headers):
+    pass
 
 
 if __name__ == '__main__':
