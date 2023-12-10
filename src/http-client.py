@@ -22,7 +22,6 @@ def make_request(args: HTTPArgs):
     body = process_body(body)
 
     request = build_request(body, headers, method, path)
-    print(request)
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.settimeout(timeout)
@@ -61,6 +60,9 @@ def process_url(url):
 
 
 def process_headers(headers):
+    if not headers:
+        return {}
+
     return dict([x.strip(" '") for x in header.split(':', 1)]
                 for header in headers)
 
