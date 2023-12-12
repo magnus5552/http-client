@@ -7,6 +7,7 @@ from cmd_parser import configure_parser, HTTPArgs
 path = os.path.dirname(os.path.realpath(__file__))
 cookies_path = os.path.join(path, 'cookies.pickle')
 
+
 def make_request(args: HTTPArgs):
     url, method, headers, body, timeout, output_file = (
         args.url, args.method, args.headers, args.body, args.timeout,
@@ -78,7 +79,7 @@ def receive_response(sock: socket.socket):
     response = b""
     while True:
         chunk = sock.recv(4096)
-        if len(chunk) == 0:
+        if not chunk:
             break
         response = response + chunk
     return response
@@ -111,7 +112,7 @@ def get_cookies_from_file() -> dict:
 
 def add_cookie(headers: dict, host: str) -> None:
     cookies = get_cookies_from_file()
-    if len(cookies) == 0 or host not in cookies:
+    if not cookies or host not in cookies:
         return
     for name, value in cookies[host].items():
         headers["Cookies"] = f"{name}={value}"
