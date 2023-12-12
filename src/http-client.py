@@ -1,4 +1,5 @@
 import socket
+import sys
 from urllib.parse import urlparse
 import pickle
 import os
@@ -13,6 +14,9 @@ def make_request(args: HTTPArgs):
         args.url, args.method, args.headers, args.body, args.timeout,
         args.output)
 
+    if method not in ["GET", 'PUT', 'POST', 'OPTIONS', "HEAD", "PATCH", "DELETE", "TRACE", "CONNECT"]:
+        raise ValueError("Incorrect method")
+
     hostname, port, path = process_url(url)
 
     headers = process_headers(headers)
@@ -24,19 +28,38 @@ def make_request(args: HTTPArgs):
 
     request = build_request(body, headers, method, path)
 
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        sock.settimeout(timeout)
-        sock.connect((hostname, port))
-        sock.sendall(request.encode())
-        response = receive_response(sock).decode()
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.settimeout(timeout)
+            sock.connect((hostname, port))
+            sock.sendall(request.encode())
+            response = receive_response(sock).decode()
+    except TimeoutError:
+        print("Problems with connection, timeout")
+        sys.exit()
+    except OSError:
+        print("Exception appeared when making request")
 
     set_cookie(response, hostname)
 
-    if output_file is not None:
-        with open(output_file, 'w') as file:
-            file.write(response)
-    else:
-        print(response)
+    try:
+        if output_file is not None:
+            with open(output_file, 'w') as file:
+                file.write(response)
+        else:
+            print(response)
+    except PermissionError:
+        print("Not enough permissions to open this file")
+        sys.exit()
+    except IsADirectoryError:
+        print("Can't open directory, i need file")
+        sys.exit()
+    except IOError:
+        print("An error occurred while recording, please, try again")
+        sys.exit()
+    except MemoryError:
+        print("Not enough memory to write to file")
+        sys.exit()
 
 
 def build_request(body, headers, method, path):
@@ -107,6 +130,8 @@ def get_cookies_from_file() -> dict:
     if os.path.exists(cookies_path):
         with open(cookies_path, "rb") as file:
             cookies = pickle.load(file)
+            if cookies is not dict:
+                os.remove(cookies_path)
     return cookies
 
 
