@@ -28,7 +28,8 @@ def configure_parser() -> argparse.ArgumentParser:
                         dest='method',
                         help='Метод HTTP запроса')
     parser.add_argument('-d', type=str, dest='body', default='',
-                        help='Тело запроса, если начинается с @, загружает из файла')
+                        help='Тело запроса, если начинается с @,'
+                             ' загружает из файла')
     parser.add_argument('-o', type=str, dest='output',
                         help='Файл, в который нужно загрузить ответ')
     return parser
