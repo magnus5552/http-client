@@ -1,6 +1,9 @@
 import unittest
+import socket
 from unittest.mock import MagicMock
-from ..http_client import *
+from src.http_client import (process_url, process_headers,
+                             read_headers, find_content_length,
+                             build_request)
 
 
 class MyTestCase(unittest.TestCase):
