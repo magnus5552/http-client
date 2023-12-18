@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import MagicMock
 from ..http_client import *
 
+
 class MyTestCase(unittest.TestCase):
     def test_process_url(self):
         url = 'http://example.com'
@@ -32,8 +33,8 @@ class MyTestCase(unittest.TestCase):
 
     def test_read_headers(self):
         sock = MagicMock(spec=socket.socket)
-        response =(b"HTTP/1.1 200 OK\r\nContent-Length: 100\r\n\r\nSome "
-                   b"response body")
+        response = (b"HTTP/1.1 200 OK\r\nContent-Length: 100\r\n\r\nSome "
+                    b"response body")
 
         sock.recv = MagicMock(return_value=response)
 
