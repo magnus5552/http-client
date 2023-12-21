@@ -1,12 +1,20 @@
-import unittest
 import socket
+import unittest
 from io import StringIO
-from unittest.mock import MagicMock, patch, Mock
+from unittest.mock import MagicMock, patch
 
 from src.cmd_parser import configure_parser
 from src.http_client import (process_url, process_headers,
                              read_headers, find_content_length,
                              build_request, make_request)
+
+
+def _configure_socket(expected_response):
+    mock_socket = MagicMock()
+    mock_socket.fileno.return_value = 0
+    mock_socket.recv.side_effect = [expected_response, b'']
+    mock_socket.__enter__.return_value = mock_socket
+    return mock_socket
 
 
 class MyTestCase(unittest.TestCase):
@@ -34,7 +42,7 @@ class MyTestCase(unittest.TestCase):
         expected_result = 100
         self.assertEqual(find_content_length(headers), expected_result)
         headers = b""
-        expected_result = 0
+        expected_result = None
         self.assertEqual(find_content_length(headers), expected_result)
 
     def test_read_headers(self):
@@ -72,12 +80,7 @@ class MyTestCase(unittest.TestCase):
                             b'Host: test.com:8080\r\n'
                             b'Connection: close\r\n'
                             b'\r\n\r\n\r\n')
-        response = b'HTTP/1.1 200 OK\r\n\r\n\r\n'
-
-        mock_socket = MagicMock()
-        mock_socket.fileno.return_value = 0
-        mock_socket.recv.side_effect = [response, b'', b'', b'']
-        mock_socket.__enter__.return_value = mock_socket
+        mock_socket = _configure_socket(b'HTTP/1.1 200 OK\r\n\r\n\r\n')
         socket.return_value = mock_socket
 
         parser = configure_parser()
@@ -86,8 +89,25 @@ class MyTestCase(unittest.TestCase):
         mock_socket.settimeout.assert_called_once_with(1.0)
         mock_socket.connect.assert_called_once_with(('test.com', 8080))
         mock_socket.sendall.assert_called_once_with(expected_request)
-        self.assertEqual('No content in response\nHTTP/1.1 200 OK\r\n\r\n\n',
+        self.assertEqual('HTTP/1.1 200 OK\r\n\r\n\n',
                          mock_stdout.getvalue())
+
+    @patch('sys.stdout', new_callable=StringIO)
+    @patch('src.http_client.socket.socket')
+    def test_make_request_with_headers(self, socket, mock_stdout):
+        args = ['test.com:8080', '-H', "'Test: 123'"]
+        expected_request = (b'GET / HTTP/1.1\r\n'
+                            b'Test: 123\r\n'
+                            b'Host: test.com:8080\r\n'
+                            b'Connection: close\r\n'
+                            b'\r\n\r\n\r\n')
+        mock_socket = _configure_socket(b'HTTP/1.1 200 OK\r\n\r\n\r\n')
+        socket.return_value = mock_socket
+
+        parser = configure_parser()
+        make_request(parser.parse_args(args))
+
+        mock_socket.sendall.assert_called_once_with(expected_request)
 
 
 if __name__ == '__main__':
